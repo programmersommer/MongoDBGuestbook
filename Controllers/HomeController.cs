@@ -1,19 +1,14 @@
 using System;
 using System.Text;
-using System.Diagnostics;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading.Tasks;
-using System.Data;
-using System.Data.SqlClient;
-using Dapper;
 using Guestbook.Models;
 using System.Net.Http;
 using Newtonsoft.Json;
-using Dapper.Contrib.Extensions;
+using MongoDB.Driver;
 
 namespace Guestbook
 {
@@ -21,10 +16,18 @@ namespace Guestbook
     public class HomeController : Controller
     {
         private readonly IConfiguration _configuration;
+        private readonly HttpClient _httpClient;
+        private readonly IMongoCollection<Message> _messages;
 
-        public HomeController(IConfiguration configuration)
+        public HomeController(IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
             _configuration = configuration;
+
+            _httpClient = httpClientFactory.CreateClient("defaultClient");
+
+            var client = new MongoClient(_configuration["MongoDB:ConnectionString"]);
+            var database = client.GetDatabase(_configuration["MongoDB:Database"]);
+            _messages = database.GetCollection<Message>(_configuration["MongoDB:Collection"]);
         }
 
         public IActionResult Index()
@@ -35,62 +38,52 @@ namespace Guestbook
         public IActionResult AddMessagePage()
         {
 
-           return View("AddMessage");
+            return View("AddMessage");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<bool> AddMessage(Guestbook.ViewModels.AddMessageViewModel model)
         {
-            try {
-            using (var client = new HttpClient()) {
-
-            var parameters = new Dictionary<string, string> { 
-                { "secret", _configuration["ReCaptcha:SecretKey"] }, 
+            try
+            {
+                var parameters = new Dictionary<string, string> {
+                { "secret", _configuration["ReCaptcha:SecretKey"] },
                 { "response", model.Token } };
-            var encodedContent = new FormUrlEncodedContent (parameters);
-            var response = await client.PostAsync("https://www.google.com/recaptcha/api/siteverify", encodedContent);
-            var result = JsonConvert.DeserializeObject<ReCaptchaResponse>(await response.Content.ReadAsStringAsync());
+                var encodedContent = new FormUrlEncodedContent(parameters);
+                var response = await _httpClient.PostAsync("https://www.google.com/recaptcha/api/siteverify", encodedContent);
+                var result = JsonConvert.DeserializeObject<ReCaptchaResponse>(await response.Content.ReadAsStringAsync());
 
-                if (result.success) {
-
-                    using (IDbConnection connection = new SqlConnection(_configuration["SQLConnectionString"]))
-                    {
-                         await connection.InsertAsync<Message>(new Message { SenderName = model.SenderName, Email = model.Email, MessageText = model.MessageText, MessageDate = System.DateTime.UtcNow});
-                      
-                      // without Contrib extension
-                      // string sql = "INSERT INTO Messages([SenderName],[Email],[MessageText],[MessageDate]) values (@SenderName, @Email, @MessageText, @MessageDate)";
-                      // var identity = connection.Execute(sql, new Message { SenderName = model.SenderName, Email = model.Email, MessageText = model.MessageText, MessageDate = System.DateTime.UtcNow});
-                    }
-
+                if (result.success)
+                {
+                    _messages.InsertOne(new Message { SenderName = model.SenderName, Email = model.Email, MessageText = model.MessageText, MessageDate = System.DateTime.UtcNow });
                 }
-              }
+
             }
-            catch {
+            catch (Exception _)
+            {
                 return false;
             }
 
-           return true;
+            return true;
         }
 
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult DataHandler(DataTableParameters model)
+        public async Task<IActionResult> DataHandler(DataTableParameters model)
         {
             var start = Convert.ToInt32(HttpContext.Request.Form["start"].FirstOrDefault());
             var length = Convert.ToInt32(HttpContext.Request.Form["length"].FirstOrDefault());
 
             List<Message> messages;
-            int total;
-            using (IDbConnection connection = new SqlConnection(_configuration["SQLConnectionString"]))
+            long total;
+
+            total = await _messages.Find(Message => true).CountDocumentsAsync();
+            messages = await _messages.Find(Message => true).Sort(new MongoDB.Bson.BsonDocument("MessageDate", -1)).Skip(start).Limit(length).ToListAsync();
+
+            var newData = messages.Select(m => new[]
             {
-                total = connection.QuerySingle<int>("SELECT Count(*) FROM dbo.Messages");
-                messages = connection.Query<Message>("SELECT * FROM dbo.Messages ORDER BY MessageDate DESC OFFSET "+start+" ROWS FETCH NEXT "+length+" ROWS ONLY").ToList();
-            }
-                
-                var newData = messages.Select(m => new[]
-                {
                     "<div class=\"row align-items-center justify-content-center mt-3\">"
                                   +"<span style=\"color:Orange;\">"+m.SenderName+"</span>"
                                           +"&nbsp; &nbsp; &nbsp;"
@@ -110,13 +103,13 @@ namespace Guestbook
                 iTotalRecords = total
             };
 
-            return Json(result);       
+            return Json(result);
         }
 
         public string DisplaySmiles(string text)
         {
             StringBuilder mess = new StringBuilder(text);
-     
+
             mess = mess.Replace(":)", "<img alt='smile' src='images/emotions/smile.gif' />");
             mess = mess.Replace(";)", "<img alt='wink' src='images/emotions/wink.gif' />");
             mess = mess.Replace(":(", "<img alt='sad' src='images/emotions/sad.gif' />");
@@ -126,8 +119,8 @@ namespace Guestbook
             mess = mess.Replace(":fingerUp:", "<img alt='finger up' src='images/emotions/fingerUp.gif' />");
             mess = mess.Replace(":fingerDown:", "<img alt='finger down' src='images/emotions/fingerDown.gif' />");
             mess = mess.Replace(":angel:", "<img alt='angel' src='images/emotions/angel.gif' />");
-            mess = mess.Replace(":angry:", "<img alt='angry' src='images/emotions/angry.gif' />");      
-            
+            mess = mess.Replace(":angry:", "<img alt='angry' src='images/emotions/angry.gif' />");
+
             return mess.ToString();
         }
 

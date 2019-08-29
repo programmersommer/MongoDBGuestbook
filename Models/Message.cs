@@ -1,15 +1,14 @@
-using Dapper;
-using System.Data;
 using System;
-using Dapper.Contrib.Extensions;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Guestbook.Models
 {
 
     public class Message
     {
-        [Key]
-        public int ID { get; set; }
+        [BsonId]
+        public ObjectId ID { get; set; }
         public string SenderName { get; set; }
         public string Email { get; set; }
         public string MessageText { get; set; }
@@ -18,10 +17,3 @@ namespace Guestbook.Models
 
 }
 
-// CREATE TABLE Messages (
-//     ID int IDENTITY(1,1) PRIMARY KEY,
-//     SenderName nvarchar(255),
-//     Email nvarchar(255),
-//     MessageText nvarchar(Max),
-//     MessageDate smalldatetime
-// ); 
