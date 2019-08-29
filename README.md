@@ -4,6 +4,6 @@ Pritty basic example of guestbook that is using MongoDB and ReCaptcha 3.
 
 Screenshots
 
-![Screenshot](/screenshot1.PNG)
+![Screenshot](/screenshot1.png)
 
-![Screenshot](/screenshot2.PNG)
+![Screenshot](/screenshot2.png)
