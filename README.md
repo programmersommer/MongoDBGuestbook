@@ -1,6 +1,6 @@
 This code was written many-many years ago. And was recently updated to .NET Core    
 
-Pritty basic example of guestbook.
+Pritty basic example of guestbook that is using MongoDB and ReCaptcha 3.
 
 Screenshots
 
