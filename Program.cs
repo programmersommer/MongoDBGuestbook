@@ -17,8 +17,14 @@ namespace Guestbook
             CreateWebHostBuilder(args).Build().Run();
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
+
+	    public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
+               WebHost.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((buildercontext, config) => // for Kubernetes only
+                {
+                    config.AddJsonFile("secrets/settings-guestbook.json", optional: true)
+                })
                 .UseStartup<Startup>();
+						
     }
 }
