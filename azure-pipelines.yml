@@ -7,3 +7,8 @@ steps:
     docker build -t $(dockerId)/$(imageName) .
     docker login -u $(dockerId) -p $(dockerPassword)
     docker push $(dockerId)/$(imageName)
+
+    docker login --username=_ --password=$(token) registry.heroku.com
+
+    docker build -t registry.heroku.com/freeguestbook/web .
+    docker push registry.heroku.com/freeguestbook/web
