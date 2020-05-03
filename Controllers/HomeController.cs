@@ -57,7 +57,7 @@ namespace Guestbook
 
                 if (result.success)
                 {
-                    _messages.InsertOne(new Message { SenderName = model.SenderName, Email = model.Email, MessageText = model.MessageText, MessageDate = System.DateTime.UtcNow });
+                    _messages.InsertOne(new Message { SenderName = model.Name, Email = model.Email, MessageText = model.MessageText, MessageDate = System.DateTime.UtcNow });
                 }
 
             }
