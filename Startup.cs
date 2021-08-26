@@ -14,7 +14,7 @@ namespace Guestbook
         {
             services.AddAntiforgery(options =>
             {
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.SuppressXFrameOptionsHeader = false;
             });
