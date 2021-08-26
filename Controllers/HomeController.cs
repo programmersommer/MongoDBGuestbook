@@ -14,6 +14,7 @@ using System.Web;
 namespace Guestbook
 {
 
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public class HomeController : Controller
     {
         private readonly IConfiguration _configuration;
